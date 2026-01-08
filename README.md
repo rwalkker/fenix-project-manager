@@ -48,27 +48,11 @@ npm start
 Required environment variables for deployment:
 
 ```env
-# AWS Credentials (for Bedrock AI)
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_REGION=us-east-1
+cd fenix-project-manager
+git add .
+git commit -m "Fix Render region and sanitize credentials for security"
+git push origin main
 
-# Security
-JWT_SECRET=your_jwt_secret_32_chars_minimum
-SESSION_SECRET=your_session_secret_32_chars_minimum
-
-# Application
-NODE_ENV=production
-PORT=10000
-LOG_LEVEL=info
-
-# File Upload
-MAX_FILE_SIZE=10485760
-UPLOAD_DIR=/tmp/uploads
-STORAGE_PATH=/tmp/fenix-storage
-```
-
----
 
 ## 📋 Supported File Types
 
@@ -237,5 +221,6 @@ MIT License - see LICENSE file for details
 - [ ] Advanced analytics
 
 ---
+
 
 **Built with ❤️ for operations teams who need powerful document generation tools.**
