@@ -1,0 +1,33 @@
+# FENIX Render.com Environment Variables Template
+# Copy these variable names to Render and set the actual values there
+
+# AWS Credentials (for Bedrock AI) - SET ACTUAL VALUES IN RENDER DASHBOARD
+AWS_ACCESS_KEY_ID=your_aws_access_key_here
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key_here
+AWS_REGION=us-east-1
+
+# Security Secrets - GENERATE NEW RANDOM VALUES IN RENDER DASHBOARD
+JWT_SECRET=generate_32_character_random_string_here
+SESSION_SECRET=generate_another_32_character_random_string_here
+
+# Application Configuration
+NODE_ENV=production
+PORT=10000
+LOG_LEVEL=info
+
+# File Upload Configuration
+MAX_FILE_SIZE=10485760
+UPLOAD_DIR=/tmp/uploads
+STORAGE_PATH=/tmp/fenix-storage
+
+# Optional Database Configuration (for future use)
+# DB_HOST=your_database_host
+# DB_PORT=5432
+# DB_NAME=fenix_production
+# DB_USER=your_db_user
+# DB_PASSWORD=your_db_password
+
+# SECURITY NOTE:
+# Never commit actual secrets to Git repositories
+# Always use environment variables or secure secret management
+# Generate new secrets for production deployments
