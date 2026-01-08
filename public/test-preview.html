@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview Test - FENIX</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <div style="max-width: 800px; margin: 50px auto; padding: 20px;">
+    <h1>Document Preview Test</h1>
+    
+    <div class="card mb-3">
+      <div class="card-header">Test Preview</div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Document ID</label>
+          <input type="text" id="doc-id" class="form-input" 
+                 placeholder="Enter document ID or filename">
+        </div>
+        <button id="preview-btn" class="btn btn-primary">Show Preview</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Sample Excel Data</div>
+      <div class="card-body">
+        <p>This demonstrates Excel preview with sample data:</p>
+        <button id="sample-excel-btn" class="btn btn-outline">Show Sample Excel Preview</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { PreviewComponent } from './js/components/preview.js';
+    import { API } from './js/api.js';
+
+    const api = new API();
+    const preview = new PreviewComponent(api);
+
+    document.getElementById('preview-btn').addEventListener('click', async () => {
+      const docId = document.getElementById('doc-id').value;
+      if (!docId) {
+        alert('Please enter a document ID');
+        return;
+      }
+
+      try {
+        await preview.showPreview(docId, document.body);
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    });
+
+    document.getElementById('sample-excel-btn').addEventListener('click', () => {
+      // Show sample Excel preview
+      const samplePreview = {
+        type: 'excel',
+        filename: 'sample-workbook.xlsx',
+        pageCount: 2,
+        sheets: [
+          {
+            name: 'Sales Data',
+            rowCount: 100,
+            columnCount: 5,
+            data: [
+              ['Product', 'Q1', 'Q2', 'Q3', 'Q4'],
+              ['Widget A', 1000, 1200, 1100, 1300],
+              ['Widget B', 800, 900, 950, 1000],
+              ['Widget C', 1500, 1600, 1550, 1700],
+              ['Widget D', 600, 650, 700, 750],
+            ]
+          },
+          {
+            name: 'Summary',
+            rowCount: 10,
+            columnCount: 3,
+            data: [
+              ['Metric', 'Value', 'Change'],
+              ['Total Sales', '$50,000', '+15%'],
+              ['New Customers', '250', '+20%'],
+              ['Avg Order', '$200', '+5%'],
+            ]
+          }
+        ],
+        metadata: {
+          created: new Date(),
+          modified: new Date(),
+        }
+      };
+
+      // Create modal manually
+      const modal = document.createElement('div');
+      modal.className = 'preview-modal';
+      modal.innerHTML = `
+        <div class="preview-modal-content">
+          <div class="preview-header">
+            <h2>Document Preview</h2>
+            <button class="preview-close">&times;</button>
+          </div>
+          <div class="preview-content"></div>
+          <div class="preview-footer">
+            <button class="btn btn-primary">Download</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      const content = modal.querySelector('.preview-content');
+      preview.renderExcelPreview(samplePreview, content);
+
+      modal.querySelector('.preview-close').addEventListener('click', () => {
+        modal.remove();
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

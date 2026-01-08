@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Test</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-container">
+      <div class="navbar-brand">
+        <h1>FENIX</h1>
+        <span class="navbar-subtitle">Simple Test</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="content">
+    <div class="dashboard">
+      <h1>Simple Test Page</h1>
+      <p>If you can see this, the CSS and basic HTML are working.</p>
+      <div class="card">
+        <div class="card-header">Test Card</div>
+        <div class="card-body">
+          <p>This is a test card to verify styling.</p>
+          <button class="btn btn-primary" onclick="testClick()">Test Button</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    console.log('Simple test page loaded');
+    
+    function testClick() {
+      alert('Button clicked! JavaScript is working.');
+    }
+    
+    // Test basic functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded');
+      document.body.style.backgroundColor = '#f8f9fa';
+      console.log('Background color changed');
+    });
+  </script>
+</body>
+</html>

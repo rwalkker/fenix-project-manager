@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Test - FENIX</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #232F3E;
+      margin-bottom: 20px;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .status.connected {
+      background-color: #067D62;
+      color: white;
+    }
+    .status.disconnected {
+      background-color: #C7511F;
+      color: white;
+    }
+    .log {
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin: 20px 0;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-left: 3px solid #FF9900;
+      padding-left: 10px;
+    }
+    .log-entry.progress { border-left-color: #007EB9; }
+    .log-entry.status { border-left-color: #067D62; }
+    .log-entry.notification { border-left-color: #FF9900; }
+    .log-entry.error { border-left-color: #C7511F; }
+    button {
+      background-color: #FF9900;
+      color: #232F3E;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+    }
+    button:hover {
+      background-color: #EC8B00;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔌 WebSocket Test - FENIX</h1>
+    
+    <div id="status" class="status disconnected">
+      Disconnected
+    </div>
+
+    <div>
+      <button id="connect-btn">Connect</button>
+      <button id="disconnect-btn" disabled>Disconnect</button>
+      <button id="subscribe-btn" disabled>Subscribe to Test Workflow</button>
+      <button id="clear-btn">Clear Log</button>
+    </div>
+
+    <div class="log" id="log">
+      <div class="log-entry">Waiting for connection...</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script>
+    let socket = null;
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const subscribeBtn = document.getElementById('subscribe-btn');
+    const clearBtn = document.getElementById('clear-btn');
+
+    function addLog(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function updateStatus(connected) {
+      if (connected) {
+        statusEl.textContent = 'Connected';
+        statusEl.className = 'status connected';
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        subscribeBtn.disabled = false;
+      } else {
+        statusEl.textContent = 'Disconnected';
+        statusEl.className = 'status disconnected';
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        subscribeBtn.disabled = true;
+      }
+    }
+
+    connectBtn.addEventListener('click', () => {
+      addLog('Connecting to WebSocket server...');
+      
+      socket = io('http://localhost:3100', {
+        transports: ['websocket', 'polling'],
+      });
+
+      socket.on('connect', () => {
+        addLog('✅ Connected! Socket ID: ' + socket.id, 'status');
+        updateStatus(true);
+      });
+
+      socket.on('disconnect', () => {
+        addLog('❌ Disconnected', 'error');
+        updateStatus(false);
+      });
+
+      socket.on('progress', (data) => {
+        addLog(`📊 Progress: ${data.progress}% - ${data.message}`, 'progress');
+      });
+
+      socket.on('status', (data) => {
+        addLog(`📋 Status: ${data.status} - Workflow: ${data.workflowId}`, 'status');
+      });
+
+      socket.on('notification', (data) => {
+        addLog(`🔔 Notification [${data.level}]: ${data.message}`, 'notification');
+      });
+
+      socket.on('connect_error', (error) => {
+        addLog(`❌ Connection error: ${error.message}`, 'error');
+      });
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+        addLog('Disconnected by user');
+        updateStatus(false);
+      }
+    });
+
+    subscribeBtn.addEventListener('click', () => {
+      if (socket) {
+        const workflowId = 'test-workflow-123';
+        socket.emit('subscribe', workflowId);
+        addLog(`📡 Subscribed to workflow: ${workflowId}`, 'status');
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      logEl.innerHTML = '<div class="log-entry">Log cleared</div>';
+    });
+  </script>
+</body>
+</html>

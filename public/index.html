@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="FENIX Project Manager - AI-powered document generation platform">
+  <title>FENIX Project Manager</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/file-upload.css">
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav id="navbar" class="navbar">
+    <div class="navbar-container">
+      <div class="navbar-brand">
+        <h1>FENIX</h1>
+        <span class="navbar-subtitle">Project Manager</span>
+      </div>
+      <div class="navbar-menu">
+        <a href="#" data-page="dashboard" class="navbar-link active">Dashboard</a>
+        <a href="#" data-page="generator" class="navbar-link">Generate</a>
+        <a href="#" data-page="workflows" class="navbar-link">Workflows</a>
+        <a href="#" data-page="templates" class="navbar-link">Templates</a>
+        <a href="#" data-page="documents" class="navbar-link">Documents</a>
+        <a href="#" data-page="ai-tools" class="navbar-link">AI Tools</a>
+        <a href="#" data-page="settings" class="navbar-link">Settings</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main id="content" class="content">
+    <!-- Content will be dynamically loaded here -->
+  </main>
+
+  <!-- Footer -->
+  <footer id="footer" class="footer">
+    <div class="footer-container">
+      <p>&copy; 2026 FENIX Project Manager | PHX6 Operations</p>
+      <p class="footer-links">
+        <a href="#" data-page="about">About</a> |
+        <a href="#" data-page="help">Help</a> |
+        <a href="/health" target="_blank">Status</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Notification Container -->
+  <div id="notifications" class="notifications"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Processing...</p>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

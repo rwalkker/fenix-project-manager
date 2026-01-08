@@ -1,0 +1,117 @@
+/* File Upload Styles */
+
+.file-upload-area {
+  margin-bottom: 1rem;
+}
+
+.upload-dropzone {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+.upload-dropzone:hover {
+  border-color: var(--primary);
+  background: #f0f8ff;
+}
+
+.upload-dropzone.dragover {
+  border-color: var(--primary);
+  background: #e6f3ff;
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-text {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.upload-help {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.uploaded-files {
+  margin-top: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+}
+
+.uploaded-files-header {
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-bottom: 1px solid #ddd;
+  font-weight: 500;
+}
+
+.uploaded-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.uploaded-file-item:last-child {
+  border-bottom: none;
+}
+
+.file-info {
+  flex: 1;
+}
+
+.file-name {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.file-details {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.file-analysis {
+  font-size: 0.875rem;
+  color: #28a745;
+  font-style: italic;
+}
+
+.remove-file-btn {
+  margin-left: 1rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.remove-file-btn:hover {
+  background: #dc3545;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .upload-dropzone {
+    padding: 1.5rem 1rem;
+  }
+  
+  .uploaded-file-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .remove-file-btn {
+    margin-left: 0;
+    margin-top: 0.5rem;
+    align-self: flex-end;
+  }
+}
