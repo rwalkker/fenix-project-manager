@@ -3,7 +3,6 @@ services:
     name: fenix-project-manager
     env: node
     plan: free
-    region: oregon
     buildCommand: npm install --only=production && node render-build.js
     startCommand: npm start
     healthCheckPath: /health
