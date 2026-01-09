@@ -125,17 +125,27 @@ app.get('/api/status', (req, res) => {
                 { path: '/health', method: 'GET', description: 'Health check' },
                 { path: '/api/status', method: 'GET', description: 'API status' },
                 { path: '/api/env', method: 'GET', description: 'Environment info' },
+                { path: '/api/v1/templates', method: 'GET', description: 'All templates' },
+                { path: '/api/v1/templates/:docType', method: 'GET', description: 'Templates by document type' },
                 { path: '/api/v1/generate/powerpoint', method: 'POST', description: 'Generate PowerPoint presentation' },
                 { path: '/api/v1/generate/excel', method: 'POST', description: 'Generate Excel spreadsheet' },
                 { path: '/api/v1/generate/word', method: 'POST', description: 'Generate Word document' },
-                { path: '/api/v1/templates', method: 'GET', description: 'Get available templates' },
                 { path: '/api/v1/upload', method: 'POST', description: 'Upload files' },
+                { path: '/api/v1/download/:jobId', method: 'GET', description: 'Download generated files' },
                 { path: '/api/test', method: 'POST', description: 'Test endpoint' }
+            ],
+            legacyCompatibility: [
+                { path: '/api/templates', method: 'GET', description: 'Legacy templates (redirects to v1)' },
+                { path: '/api/templates/:docType', method: 'GET', description: 'Legacy templates by type (redirects)' },
+                { path: '/api/generate', method: 'POST', description: 'Legacy generate (redirects to v1)' },
+                { path: '/api/generate/:docType', method: 'POST', description: 'Legacy generate by type (redirects)' },
+                { path: '/api/config', method: 'GET', description: 'API configuration' },
+                { path: '/api/health', method: 'GET', description: 'Legacy health (redirects)' }
             ],
             timestamp: new Date().toISOString(),
             server: 'Express.js',
             nodeVersion: process.version,
-            status: 'All API endpoints are working'
+            status: 'All API endpoints are working with legacy compatibility'
         };
         res.json(statusData);
     } catch (error) {
@@ -375,6 +385,67 @@ app.get('/api/v1/templates', (req, res) => {
     }
 });
 
+// Templates by document type (what the old frontend expects)
+app.get('/api/v1/templates/:docType', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        const docType = req.params.docType;
+        console.log(`Templates requested for document type: ${docType}`);
+        
+        const allTemplates = {
+            powerpoint: [
+                { id: 'executive-summary', name: 'Executive Summary', description: 'Professional executive presentation template' },
+                { id: 'project-status', name: 'Project Status', description: 'Project status and milestone tracking' },
+                { id: 'quarterly-review', name: 'Quarterly Review', description: 'Quarterly business review template' },
+                { id: 'sales-pitch', name: 'Sales Pitch', description: 'Compelling sales presentation template' },
+                { id: 'training-module', name: 'Training Module', description: 'Educational training presentation' }
+            ],
+            excel: [
+                { id: 'budget-tracker', name: 'Budget Tracker', description: 'Financial budget tracking spreadsheet' },
+                { id: 'project-timeline', name: 'Project Timeline', description: 'Project timeline and task management' },
+                { id: 'data-analysis', name: 'Data Analysis', description: 'Data analysis and reporting template' },
+                { id: 'inventory-management', name: 'Inventory Management', description: 'Stock and inventory tracking' },
+                { id: 'financial-dashboard', name: 'Financial Dashboard', description: 'Financial metrics and KPIs' }
+            ],
+            word: [
+                { id: 'business-proposal', name: 'Business Proposal', description: 'Professional business proposal template' },
+                { id: 'technical-spec', name: 'Technical Specification', description: 'Technical specification document' },
+                { id: 'user-manual', name: 'User Manual', description: 'User manual and documentation template' },
+                { id: 'policy-document', name: 'Policy Document', description: 'Corporate policy and procedure document' },
+                { id: 'report-template', name: 'Report Template', description: 'Professional report template' }
+            ]
+        };
+        
+        const templates = allTemplates[docType] || [];
+        
+        if (templates.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Document type not found',
+                message: `No templates available for document type: ${docType}`,
+                availableTypes: Object.keys(allTemplates),
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        res.json({
+            success: true,
+            documentType: docType,
+            templates: templates,
+            count: templates.length,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error(`Templates endpoint error for ${req.params.docType}:`, error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to load templates',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
 // Upload endpoint
 app.post('/api/v1/upload', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
@@ -416,6 +487,7 @@ app.get('/api/config', (req, res) => {
             apiVersion: 'v1',
             endpoints: {
                 templates: '/api/v1/templates',
+                templatesWithType: '/api/v1/templates/:docType',
                 generate: '/api/v1/generate',
                 health: '/health'
             },
@@ -423,6 +495,23 @@ app.get('/api/config', (req, res) => {
             status: 'operational'
         }
     });
+});
+
+// Additional legacy template routes
+app.get('/api/templates/:docType', (req, res) => {
+    // Redirect to new endpoint
+    res.redirect(`/api/v1/templates/${req.params.docType}`);
+});
+
+// Legacy generate routes with different patterns
+app.post('/api/generate/:docType', (req, res) => {
+    // Redirect to new endpoint
+    res.redirect(307, `/api/v1/generate/${req.params.docType}`);
+});
+
+// Legacy API status route
+app.get('/api/health', (req, res) => {
+    res.redirect('/health');
 });
 
 // Enhanced request logging
@@ -436,14 +525,17 @@ app.use((req, res, next) => {
 
 // Catch-all for any other legacy API routes
 app.all('/api/*', (req, res, next) => {
-    // If it's one of our known v1 routes, let it through
+    // If it's one of our known routes, let it through
     if (req.path.startsWith('/api/v1/') || 
         req.path === '/api/status' || 
         req.path === '/api/env' ||
         req.path === '/api/test' ||
         req.path === '/api/templates' ||
         req.path === '/api/generate' ||
-        req.path === '/api/config') {
+        req.path === '/api/config' ||
+        req.path === '/api/health' ||
+        req.path.match(/^\/api\/templates\/\w+$/) ||
+        req.path.match(/^\/api\/generate\/\w+$/)) {
         return next();
     }
     
@@ -464,15 +556,19 @@ app.all('/api/*', (req, res, next) => {
             'GET /health - Health check',
             'GET /api/status - API status',
             'GET /api/env - Environment info',
-            'GET /api/v1/templates - Available templates',
+            'GET /api/v1/templates - All templates',
+            'GET /api/v1/templates/:docType - Templates by document type',
             'POST /api/v1/generate/powerpoint - Generate PowerPoint',
             'POST /api/v1/generate/excel - Generate Excel',
             'POST /api/v1/generate/word - Generate Word',
             'POST /api/v1/upload - Upload files',
             'GET /api/v1/download/:jobId - Download files',
             'GET /api/templates - Legacy templates (redirects)',
+            'GET /api/templates/:docType - Legacy templates by type (redirects)',
             'POST /api/generate - Legacy generate (redirects)',
-            'GET /api/config - API configuration'
+            'POST /api/generate/:docType - Legacy generate by type (redirects)',
+            'GET /api/config - API configuration',
+            'GET /api/health - Legacy health (redirects)'
         ],
         timestamp: new Date().toISOString()
     });
