@@ -75,11 +75,18 @@ app.get('/api/status', (req, res) => {
             endpoints: [
                 { path: '/health', method: 'GET', description: 'Health check' },
                 { path: '/api/status', method: 'GET', description: 'API status' },
-                { path: '/api/env', method: 'GET', description: 'Environment info' }
+                { path: '/api/env', method: 'GET', description: 'Environment info' },
+                { path: '/api/v1/generate/powerpoint', method: 'POST', description: 'Generate PowerPoint presentation' },
+                { path: '/api/v1/generate/excel', method: 'POST', description: 'Generate Excel spreadsheet' },
+                { path: '/api/v1/generate/word', method: 'POST', description: 'Generate Word document' },
+                { path: '/api/v1/templates', method: 'GET', description: 'Get available templates' },
+                { path: '/api/v1/upload', method: 'POST', description: 'Upload files' },
+                { path: '/api/test', method: 'POST', description: 'Test endpoint' }
             ],
             timestamp: new Date().toISOString(),
             server: 'Express.js',
-            nodeVersion: process.version
+            nodeVersion: process.version,
+            status: 'All API endpoints are working'
         };
         res.json(statusData);
     } catch (error) {
@@ -124,6 +131,156 @@ app.post('/api/test', (req, res) => {
     } catch (error) {
         console.error('Test endpoint error:', error);
         res.status(500).json({ status: 'error', message: 'Test failed' });
+    }
+});
+
+// PowerPoint generation endpoint
+app.post('/api/v1/generate/powerpoint', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        console.log('PowerPoint generation request received:', req.body);
+        
+        // Mock response for now - replace with actual generation logic later
+        const mockResponse = {
+            success: true,
+            message: 'PowerPoint generation endpoint is working',
+            data: {
+                filename: 'generated-presentation.pptx',
+                slides: 5,
+                theme: 'default',
+                generatedAt: new Date().toISOString()
+            },
+            note: 'This is a mock response. Full AI generation will be implemented next.'
+        };
+        
+        res.json(mockResponse);
+    } catch (error) {
+        console.error('PowerPoint generation error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'PowerPoint generation failed',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Excel generation endpoint
+app.post('/api/v1/generate/excel', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        console.log('Excel generation request received:', req.body);
+        
+        const mockResponse = {
+            success: true,
+            message: 'Excel generation endpoint is working',
+            data: {
+                filename: 'generated-spreadsheet.xlsx',
+                sheets: 3,
+                rows: 100,
+                generatedAt: new Date().toISOString()
+            },
+            note: 'This is a mock response. Full generation will be implemented next.'
+        };
+        
+        res.json(mockResponse);
+    } catch (error) {
+        console.error('Excel generation error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Excel generation failed',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Word generation endpoint
+app.post('/api/v1/generate/word', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        console.log('Word generation request received:', req.body);
+        
+        const mockResponse = {
+            success: true,
+            message: 'Word generation endpoint is working',
+            data: {
+                filename: 'generated-document.docx',
+                pages: 10,
+                wordCount: 2500,
+                generatedAt: new Date().toISOString()
+            },
+            note: 'This is a mock response. Full generation will be implemented next.'
+        };
+        
+        res.json(mockResponse);
+    } catch (error) {
+        console.error('Word generation error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Word generation failed',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Templates endpoint
+app.get('/api/v1/templates', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        const mockTemplates = {
+            powerpoint: [
+                { id: 'executive-summary', name: 'Executive Summary', description: 'Professional executive presentation template' },
+                { id: 'project-status', name: 'Project Status', description: 'Project status and milestone tracking' },
+                { id: 'quarterly-review', name: 'Quarterly Review', description: 'Quarterly business review template' }
+            ],
+            excel: [
+                { id: 'budget-tracker', name: 'Budget Tracker', description: 'Financial budget tracking spreadsheet' },
+                { id: 'project-timeline', name: 'Project Timeline', description: 'Project timeline and task management' },
+                { id: 'data-analysis', name: 'Data Analysis', description: 'Data analysis and reporting template' }
+            ],
+            word: [
+                { id: 'business-proposal', name: 'Business Proposal', description: 'Professional business proposal template' },
+                { id: 'technical-spec', name: 'Technical Specification', description: 'Technical specification document' },
+                { id: 'user-manual', name: 'User Manual', description: 'User manual and documentation template' }
+            ]
+        };
+        
+        res.json({
+            success: true,
+            templates: mockTemplates,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Templates endpoint error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to load templates',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// Upload endpoint
+app.post('/api/v1/upload', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        res.json({
+            success: true,
+            message: 'Upload endpoint is working',
+            note: 'File upload functionality will be implemented next',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Upload endpoint error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Upload failed',
+            message: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
 });
 
@@ -179,6 +336,17 @@ app.get('/', (req, res) => {
             <a href="/health" class="endpoint">🏥 Health Check</a>
             <a href="/api/status" class="endpoint">📊 API Status</a>
             <a href="/api/env" class="endpoint">🔧 Environment Info</a>
+            <a href="/api/v1/templates" class="endpoint">📋 Templates</a>
+        </div>
+        
+        <h4 style="text-align: center; margin-top: 30px;">Generation APIs (POST):</h4>
+        <div style="text-align: center; margin: 20px 0;">
+            <p style="opacity: 0.9;">
+                📄 /api/v1/generate/powerpoint<br>
+                📊 /api/v1/generate/excel<br>
+                📝 /api/v1/generate/word<br>
+                📤 /api/v1/upload
+            </p>
         </div>
         
         <div class="info">
