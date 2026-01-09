@@ -48,7 +48,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
     }
 }));
 
-// Debug route to check file system
+// Debug route to check file system and serving
 app.get('/debug/files', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     try {
@@ -57,19 +57,43 @@ app.get('/debug/files', (req, res) => {
         
         // Check if public directory exists
         files.publicDirExists = fs.existsSync(publicDir);
+        files.publicDirPath = publicDir;
         
         if (files.publicDirExists) {
             try {
                 files.publicContents = fs.readdirSync(publicDir);
+                
+                // Check specific files and their sizes
+                const filesToCheck = ['index.html', 'styles.css', 'app.js'];
+                files.fileDetails = {};
+                
+                filesToCheck.forEach(filename => {
+                    const filePath = path.join(publicDir, filename);
+                    if (fs.existsSync(filePath)) {
+                        const stats = fs.statSync(filePath);
+                        files.fileDetails[filename] = {
+                            exists: true,
+                            size: stats.size,
+                            modified: stats.mtime,
+                            path: filePath
+                        };
+                        
+                        // Read first few lines of each file to verify content
+                        try {
+                            const content = fs.readFileSync(filePath, 'utf8');
+                            files.fileDetails[filename].firstLines = content.substring(0, 200) + '...';
+                            files.fileDetails[filename].totalLength = content.length;
+                        } catch (e) {
+                            files.fileDetails[filename].readError = e.message;
+                        }
+                    } else {
+                        files.fileDetails[filename] = { exists: false };
+                    }
+                });
             } catch (e) {
                 files.publicContentsError = e.message;
             }
         }
-        
-        // Check specific files
-        files.indexHtmlExists = fs.existsSync(path.join(publicDir, 'index.html'));
-        files.stylesExists = fs.existsSync(path.join(publicDir, 'styles.css'));
-        files.appJsExists = fs.existsSync(path.join(publicDir, 'app.js'));
         
         // Check current directory contents
         files.currentDir = __dirname;
@@ -79,10 +103,23 @@ app.get('/debug/files', (req, res) => {
             files.currentDirContentsError = e.message;
         }
         
+        // Check if we're serving static files correctly
+        files.staticMiddlewareInfo = {
+            publicPath: path.join(__dirname, 'public'),
+            indexRoute: 'Should serve index.html from public/',
+            staticFilesEnabled: true
+        };
+        
         res.json({
-            debug: 'File system check',
+            debug: 'Comprehensive file system check',
             files: files,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            serverInfo: {
+                nodeVersion: process.version,
+                platform: process.platform,
+                workingDirectory: process.cwd(),
+                __dirname: __dirname
+            }
         });
     } catch (error) {
         res.status(500).json({
@@ -91,6 +128,98 @@ app.get('/debug/files', (req, res) => {
             timestamp: new Date().toISOString()
         });
     }
+});
+
+// Enhanced debug route for serving issues
+app.get('/debug/serving', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    const indexExists = fs.existsSync(indexPath);
+    
+    let indexContent = 'File not found';
+    let indexSize = 0;
+    
+    if (indexExists) {
+        try {
+            indexContent = fs.readFileSync(indexPath, 'utf8');
+            indexSize = indexContent.length;
+        } catch (e) {
+            indexContent = `Error reading file: ${e.message}`;
+        }
+    }
+    
+    const debugHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FENIX Debug - File Serving Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 FENIX File Serving Debug</h1>
+    
+    <div class="section">
+        <h2>📁 File System Status</h2>
+        <p><strong>Index.html exists:</strong> <span class="${indexExists ? 'success' : 'error'}">${indexExists}</span></p>
+        <p><strong>Index.html path:</strong> ${indexPath}</p>
+        <p><strong>Index.html size:</strong> ${indexSize} bytes</p>
+        <p><strong>Current directory:</strong> ${__dirname}</p>
+    </div>
+    
+    <div class="section">
+        <h2>📄 Index.html Content Preview</h2>
+        <pre>${indexContent.substring(0, 1000)}${indexContent.length > 1000 ? '\n... (truncated)' : ''}</pre>
+    </div>
+    
+    <div class="section">
+        <h2>🔗 Test Links</h2>
+        <p><a href="/">Main Page (should serve index.html)</a></p>
+        <p><a href="/styles.css">Styles.css (should serve CSS)</a></p>
+        <p><a href="/app.js">App.js (should serve JavaScript)</a></p>
+        <p><a href="/debug/files">File System Debug (JSON)</a></p>
+    </div>
+    
+    <div class="section">
+        <h2>💡 Troubleshooting</h2>
+        <p>If you see this page, the server is working but there might be:</p>
+        <ul>
+            <li>JavaScript errors preventing content from loading</li>
+            <li>CSS not loading properly</li>
+            <li>Static file serving issues</li>
+            <li>Index.html not being served correctly</li>
+        </ul>
+        <p><strong>Next step:</strong> Check browser console for JavaScript errors</p>
+    </div>
+    
+    <script>
+        console.log('🔧 FENIX Debug page loaded');
+        console.log('📁 Index.html exists:', ${indexExists});
+        console.log('📄 Index.html size:', ${indexSize});
+        
+        // Test if we can load the main page content
+        fetch('/')
+            .then(response => response.text())
+            .then(html => {
+                console.log('✅ Main page fetch successful');
+                console.log('📄 Main page content length:', html.length);
+                console.log('📄 Main page preview:', html.substring(0, 200));
+            })
+            .catch(error => {
+                console.error('❌ Main page fetch failed:', error);
+            });
+    </script>
+</body>
+</html>`;
+    
+    res.send(debugHtml);
 });
 
 // Health check endpoint - guaranteed valid JSON
@@ -521,6 +650,169 @@ app.use((req, res, next) => {
         console.log('Request body:', JSON.stringify(req.body, null, 2));
     }
     next();
+});
+
+// Debug endpoint to test generation API
+app.get('/debug/test-generation', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    
+    const testHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FENIX Generation API Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        button { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #5a6fd8; }
+        .result { background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #ffebee; border: 1px solid #f44336; }
+        .success { background: #e8f5e8; border: 1px solid #4caf50; }
+    </style>
+</head>
+<body>
+    <h1>🧪 FENIX Generation API Test</h1>
+    
+    <div class="section">
+        <h2>Test Document Generation APIs</h2>
+        <p>Click buttons to test each generation endpoint:</p>
+        <button onclick="testGeneration('powerpoint')">Test PowerPoint</button>
+        <button onclick="testGeneration('excel')">Test Excel</button>
+        <button onclick="testGeneration('word')">Test Word</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div class="section">
+        <h2>Results</h2>
+        <div id="results">Click a test button to see results...</div>
+    </div>
+    
+    <script>
+        async function testGeneration(type) {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                console.log(\`Testing \${type} generation...\`);
+                
+                const response = await fetch(\`/api/v1/generate/\${type}\`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        template: 'test-template',
+                        content: \`Test \${type} generation from debug page\`,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                console.log(\`Response status: \${response.status}\`);
+                console.log(\`Response headers:\`, response.headers);
+                
+                const result = await response.json();
+                console.log(\`Response data:\`, result);
+                
+                // Display result
+                const resultHtml = \`
+                    <div class="result \${result.success ? 'success' : 'error'}">
+                        <h3>\${type.toUpperCase()} Generation Test</h3>
+                        <p><strong>Status:</strong> \${response.status} \${response.statusText}</p>
+                        <p><strong>Success:</strong> \${result.success}</p>
+                        <p><strong>Has Job ID:</strong> \${result.jobId ? 'YES ✅' : 'NO ❌'}</p>
+                        \${result.jobId ? \`<p><strong>Job ID:</strong> \${result.jobId}</p>\` : ''}
+                        <p><strong>Message:</strong> \${result.message || 'No message'}</p>
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>\${JSON.stringify(result, null, 2)}</pre>
+                        </details>
+                    </div>
+                \`;
+                
+                resultsDiv.innerHTML += resultHtml;
+                
+            } catch (error) {
+                console.error(\`Test failed for \${type}:\`, error);
+                
+                const errorHtml = \`
+                    <div class="result error">
+                        <h3>\${type.toUpperCase()} Generation Test - ERROR</h3>
+                        <p><strong>Error:</strong> \${error.message}</p>
+                        <p><strong>Type:</strong> \${error.constructor.name}</p>
+                    </div>
+                \`;
+                
+                resultsDiv.innerHTML += errorHtml;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = 'Results cleared...';
+        }
+        
+        console.log('🧪 FENIX Generation API Test Page Loaded');
+    </script>
+</body>
+</html>`;
+    
+    res.send(testHtml);
+});
+
+// Simple test route
+app.get('/test', (req, res) => {
+    res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FENIX Server Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
+        .container { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; }
+        .success { color: green; font-weight: bold; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 FENIX Server Test</h1>
+        <p class="success">✅ Server is running correctly!</p>
+        
+        <div class="info">
+            <h3>📊 Server Information:</h3>
+            <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+            <p><strong>Node Version:</strong> ${process.version}</p>
+            <p><strong>Platform:</strong> ${process.platform}</p>
+            <p><strong>Uptime:</strong> ${Math.floor(process.uptime())} seconds</p>
+        </div>
+        
+        <h3>🔗 Debug Links:</h3>
+        <ul>
+            <li><a href="/">Main Page</a></li>
+            <li><a href="/debug/files">File System Debug</a></li>
+            <li><a href="/debug/serving">Serving Debug</a></li>
+            <li><a href="/health">Health Check</a></li>
+            <li><a href="/api/status">API Status</a></li>
+        </ul>
+        
+        <div class="info">
+            <h3>💡 If you see a blank page:</h3>
+            <ol>
+                <li>Check browser console for JavaScript errors</li>
+                <li>Verify CSS and JS files are loading</li>
+                <li>Use debug links above to diagnose issues</li>
+                <li>Try hard refresh (Ctrl+F5)</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        console.log('🧪 FENIX Server Test Page Loaded');
+        console.log('⏰ Server Time:', '${new Date().toISOString()}');
+        console.log('🔧 Use /debug/files and /debug/serving for detailed diagnostics');
+    </script>
+</body>
+</html>
+    `);
 });
 
 // Catch-all for any other legacy API routes

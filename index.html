@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FENIX Project Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="brand-icon">🚀</span>
+                <span class="brand-text">FENIX</span>
+            </div>
+            <div class="nav-menu">
+                <a href="#dashboard" class="nav-link active">Dashboard</a>
+                <a href="#generate" class="nav-link">Generate</a>
+                <a href="#templates" class="nav-link">Templates</a>
+                <a href="#settings" class="nav-link">Settings</a>
+            </div>
+            <div class="nav-status">
+                <span class="status-indicator online"></span>
+                <span class="status-text">Online</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="content-section active">
+            <div class="container">
+                <div class="welcome-header">
+                    <h1>Welcome to FENIX Project Manager</h1>
+                    <p>AI-powered document generation platform for operations leaders</p>
+                </div>
+
+                <div class="status-cards">
+                    <div class="status-card">
+                        <div class="card-icon">✅</div>
+                        <div class="card-content">
+                            <h3>System Status</h3>
+                            <p>All systems operational</p>
+                            <span class="card-status success">Healthy</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <div class="card-icon">📊</div>
+                        <div class="card-content">
+                            <h3>API Status</h3>
+                            <p>All endpoints available</p>
+                            <span class="card-status success">Active</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <div class="card-icon">🔧</div>
+                        <div class="card-content">
+                            <h3>Environment</h3>
+                            <p>Production ready</p>
+                            <span class="card-status success">Ready</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <h2>Quick Actions</h2>
+                    <div class="action-grid">
+                        <button class="action-btn" onclick="showSection('generate')">
+                            <span class="btn-icon">📄</span>
+                            <span class="btn-text">Generate PowerPoint</span>
+                        </button>
+                        <button class="action-btn" onclick="showSection('generate')">
+                            <span class="btn-icon">📊</span>
+                            <span class="btn-text">Generate Excel</span>
+                        </button>
+                        <button class="action-btn" onclick="showSection('generate')">
+                            <span class="btn-icon">📝</span>
+                            <span class="btn-text">Generate Word</span>
+                        </button>
+                        <button class="action-btn" onclick="showSection('templates')">
+                            <span class="btn-icon">📋</span>
+                            <span class="btn-text">Browse Templates</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Generate Section -->
+        <section id="generate" class="content-section">
+            <div class="container">
+                <h1>Document Generation</h1>
+                <p>Create professional documents with AI assistance</p>
+
+                <div class="generation-form">
+                    <div class="form-group">
+                        <label for="docType">Document Type</label>
+                        <select id="docType" class="form-control">
+                            <option value="powerpoint">PowerPoint Presentation</option>
+                            <option value="excel">Excel Spreadsheet</option>
+                            <option value="word">Word Document</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="template">Template</label>
+                        <select id="template" class="form-control">
+                            <option value="">Loading templates...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="content">Content Description</label>
+                        <textarea id="content" class="form-control" rows="4" 
+                                  placeholder="Describe what you want to generate..."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button id="generateBtn" class="btn btn-primary" onclick="generateDocument()">
+                            <span class="btn-spinner" style="display: none;">⏳</span>
+                            Generate Document
+                        </button>
+                    </div>
+                </div>
+
+                <div id="generationResult" class="result-area" style="display: none;">
+                    <h3>Generation Result</h3>
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Templates Section -->
+        <section id="templates" class="content-section">
+            <div class="container">
+                <h1>Available Templates</h1>
+                <p>Choose from our collection of professional templates</p>
+
+                <div class="template-categories">
+                    <div class="category-tabs">
+                        <button class="tab-btn active" onclick="showTemplates('powerpoint')">PowerPoint</button>
+                        <button class="tab-btn" onclick="showTemplates('excel')">Excel</button>
+                        <button class="tab-btn" onclick="showTemplates('word')">Word</button>
+                    </div>
+
+                    <div id="templateGrid" class="template-grid">
+                        <div class="loading">Loading templates...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings" class="content-section">
+            <div class="container">
+                <h1>Settings</h1>
+                <p>Configure your FENIX experience</p>
+
+                <div class="settings-grid">
+                    <div class="setting-card">
+                        <h3>API Endpoints</h3>
+                        <div class="endpoint-list">
+                            <div class="endpoint-item">
+                                <span class="method get">GET</span>
+                                <span class="path">/health</span>
+                                <span class="status online">●</span>
+                            </div>
+                            <div class="endpoint-item">
+                                <span class="method get">GET</span>
+                                <span class="path">/api/status</span>
+                                <span class="status online">●</span>
+                            </div>
+                            <div class="endpoint-item">
+                                <span class="method post">POST</span>
+                                <span class="path">/api/v1/generate/powerpoint</span>
+                                <span class="status online">●</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>System Information</h3>
+                        <div id="systemInfo" class="info-list">
+                            <div class="info-item">
+                                <span class="label">Status:</span>
+                                <span class="value">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 FENIX Project Manager. AI-powered document generation platform.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
