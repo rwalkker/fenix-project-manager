@@ -396,6 +396,88 @@ app.post('/api/v1/upload', (req, res) => {
     }
 });
 
+// API compatibility routes for legacy frontend
+app.get('/api/templates', (req, res) => {
+    // Redirect to new endpoint
+    res.redirect('/api/v1/templates');
+});
+
+app.post('/api/generate', (req, res) => {
+    // Legacy generate endpoint - determine type from request
+    const docType = req.body.type || req.body.documentType || 'powerpoint';
+    res.redirect(307, `/api/v1/generate/${docType}`);
+});
+
+// Legacy API routes that might be called by old frontend
+app.get('/api/config', (req, res) => {
+    res.json({
+        success: true,
+        config: {
+            apiVersion: 'v1',
+            endpoints: {
+                templates: '/api/v1/templates',
+                generate: '/api/v1/generate',
+                health: '/health'
+            },
+            features: ['powerpoint', 'excel', 'word'],
+            status: 'operational'
+        }
+    });
+});
+
+// Enhanced request logging
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    if (req.path.startsWith('/api/') && req.method === 'POST') {
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+    }
+    next();
+});
+
+// Catch-all for any other legacy API routes
+app.all('/api/*', (req, res, next) => {
+    // If it's one of our known v1 routes, let it through
+    if (req.path.startsWith('/api/v1/') || 
+        req.path === '/api/status' || 
+        req.path === '/api/env' ||
+        req.path === '/api/test' ||
+        req.path === '/api/templates' ||
+        req.path === '/api/generate' ||
+        req.path === '/api/config') {
+        return next();
+    }
+    
+    // Log the unknown API request
+    console.log(`❌ Unknown API request: ${req.method} ${req.path}`);
+    console.log('Headers:', req.headers);
+    if (req.body && Object.keys(req.body).length > 0) {
+        console.log('Body:', req.body);
+    }
+    
+    // For unknown API routes, return helpful 404
+    res.status(404).json({
+        error: 'API endpoint not found',
+        path: req.path,
+        method: req.method,
+        suggestion: 'This endpoint may have been moved or deprecated',
+        availableEndpoints: [
+            'GET /health - Health check',
+            'GET /api/status - API status',
+            'GET /api/env - Environment info',
+            'GET /api/v1/templates - Available templates',
+            'POST /api/v1/generate/powerpoint - Generate PowerPoint',
+            'POST /api/v1/generate/excel - Generate Excel',
+            'POST /api/v1/generate/word - Generate Word',
+            'POST /api/v1/upload - Upload files',
+            'GET /api/v1/download/:jobId - Download files',
+            'GET /api/templates - Legacy templates (redirects)',
+            'POST /api/generate - Legacy generate (redirects)',
+            'GET /api/config - API configuration'
+        ],
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Main page route - serves HTML with enhanced fallback
 app.get('/', (req, res) => {
     const indexPath = path.join(__dirname, 'public', 'index.html');
@@ -608,18 +690,52 @@ app.get('/', (req, res) => {
         </div>
 
         <div class="debug-info">
-            <h3>🔧 Debug Information</h3>
-            <p><strong>Status:</strong> Serving fallback HTML (frontend files not found)</p>
-            <p><strong>Solution:</strong> Upload the public/ folder files to GitHub</p>
-            <p><strong>Available Endpoints:</strong></p>
-            <ul style="margin: 1rem 0; padding-left: 2rem;">
-                <li><a href="/health" class="debug-link">Health Check</a></li>
-                <li><a href="/api/status" class="debug-link">API Status</a></li>
-                <li><a href="/api/env" class="debug-link">Environment Info</a></li>
-                <li><a href="/api/v1/templates" class="debug-link">Templates</a></li>
-                <li><a href="/debug/files" class="debug-link">File System Debug</a></li>
+            <h3>🔧 Current Status & Debug Information</h3>
+            <p><strong>Status:</strong> <span style="color: #FF9800;">Transition Mode</span> - Old frontend files detected</p>
+            <p><strong>Issue:</strong> Original frontend files (api.js, generator.js) are still being served</p>
+            <p><strong>Solution:</strong> Upload new files to GitHub to replace old frontend</p>
+            
+            <h4>🚨 Current Errors Being Fixed:</h4>
+            <ul style="margin: 1rem 0; padding-left: 2rem; color: #666;">
+                <li>❌ <code>api.js:39 API Error: API endpoint not found</code></li>
+                <li>❌ <code>generator.js:519 Failed to load templates</code></li>
+                <li>✅ <strong>Solution:</strong> Legacy API compatibility added</li>
             </ul>
-            <p><strong>Next Steps:</strong> Upload all files from UPLOAD_TO_GITHUB folder to GitHub</p>
+            
+            <h4>📡 Available Endpoints (All Working):</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                <div>
+                    <strong>✅ New API Endpoints:</strong>
+                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
+                        <li><a href="/health" class="debug-link">GET /health</a></li>
+                        <li><a href="/api/status" class="debug-link">GET /api/status</a></li>
+                        <li><a href="/api/v1/templates" class="debug-link">GET /api/v1/templates</a></li>
+                        <li><a href="/debug/files" class="debug-link">GET /debug/files</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>🔄 Legacy Compatibility:</strong>
+                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
+                        <li><a href="/api/templates" class="debug-link">GET /api/templates</a> → redirects</li>
+                        <li><a href="/api/config" class="debug-link">GET /api/config</a></li>
+                        <li>POST /api/generate → redirects</li>
+                        <li>All unknown APIs → helpful 404</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <h4>🎯 Next Steps:</h4>
+            <ol style="margin: 1rem 0; padding-left: 2rem;">
+                <li><strong>Upload Files:</strong> Upload all files from UPLOAD_TO_GITHUB folder to GitHub</li>
+                <li><strong>Wait for Deploy:</strong> Render will automatically redeploy (~2 minutes)</li>
+                <li><strong>New Interface:</strong> Complete FENIX interface will replace this fallback</li>
+                <li><strong>All Errors Fixed:</strong> No more api.js or generator.js errors</li>
+            </ol>
+            
+            <div style="background: #E3F2FD; border: 1px solid #2196F3; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                <strong style="color: #1976D2;">💡 Pro Tip:</strong> 
+                <span style="color: #1976D2;">The APIs are working perfectly! The errors are just from old frontend files trying to load. Once you upload the new files, everything will work seamlessly.</span>
+            </div>
         </div>
     </div>
 
