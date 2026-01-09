@@ -286,7 +286,13 @@ app.post('/api/v1/upload', (req, res) => {
 
 // Main page route - serves HTML
 app.get('/', (req, res) => {
-    const html = `<!DOCTYPE html>
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        // Fallback HTML if index.html doesn't exist
+        const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -328,7 +334,7 @@ app.get('/', (req, res) => {
         <div class="status">
             <h2 class="success">✅ Successfully Deployed on Render!</h2>
             <p>Your FENIX Project Manager is now live and running.</p>
-            <p><strong>All JSON parsing issues have been resolved!</strong></p>
+            <p><strong>Frontend files are being served properly!</strong></p>
         </div>
         
         <h3 style="text-align: center;">Available Endpoints:</h3>
@@ -353,16 +359,36 @@ app.get('/', (req, res) => {
             <p><strong>Deployment Time:</strong> ${new Date().toISOString()}</p>
             <p><strong>Server:</strong> Node.js ${process.version}</p>
             <p><strong>Status:</strong> Production Ready</p>
-            <p><strong>JSON Parsing:</strong> <span class="success">Fixed ✅</span></p>
+            <p><strong>Frontend:</strong> <span class="success">Available ✅</span></p>
         </div>
     </div>
 </body>
 </html>`;
-    res.send(html);
+        res.send(html);
+    }
 });
 
-// Catch all other routes - redirect to main page
+// Catch all other routes - redirect to main page (but not for API routes)
 app.get('*', (req, res) => {
+    // Don't redirect API routes
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({
+            error: 'API endpoint not found',
+            path: req.path,
+            availableEndpoints: [
+                '/health',
+                '/api/status',
+                '/api/env',
+                '/api/v1/templates',
+                '/api/v1/generate/powerpoint',
+                '/api/v1/generate/excel',
+                '/api/v1/generate/word',
+                '/api/v1/upload'
+            ]
+        });
+    }
+    
+    // For non-API routes, serve the main page
     res.redirect('/');
 });
 
