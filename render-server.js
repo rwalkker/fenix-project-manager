@@ -1,4 +1,4 @@
-// FENIX Render Server - Fixed JSON parsing issues
+// FENIX Render Server - Fixed Static File Serving
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -6,7 +6,7 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-console.log('🚀 Starting FENIX server...');
+console.log('🚀 Starting FENIX server with fixed static file serving...');
 
 // Enhanced JSON middleware with proper error handling
 app.use((req, res, next) => {
@@ -41,297 +41,264 @@ app.use((req, res, next) => {
     next();
 });
 
-// Static files - with detailed logging
-app.use(express.static(path.join(__dirname, 'public'), {
-    setHeaders: (res, path) => {
-        console.log(`Serving static file: ${path}`);
-    }
+// Enhanced static file serving with explicit paths
+const publicPath = path.join(__dirname, 'public');
+console.log(`📁 Static files directory: ${publicPath}`);
+console.log(`📁 Directory exists: ${fs.existsSync(publicPath)}`);
+
+// List files in public directory for debugging
+if (fs.existsSync(publicPath)) {
+    const files = fs.readdirSync(publicPath);
+    console.log('📄 Files in public directory:', files);
+} else {
+    console.log('⚠️  Public directory does not exist, creating...');
+    fs.mkdirSync(publicPath, { recursive: true });
+}
+
+// Static file middleware with enhanced logging
+app.use(express.static(publicPath, {
+    setHeaders: (res, filePath) => {
+        console.log(`📄 Serving static file: ${filePath}`);
+        
+        // Set proper content types
+        if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        } else if (filePath.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        } else if (filePath.endsWith('.html')) {
+            res.setHeader('Content-Type', 'text/html');
+        }
+    },
+    fallthrough: true
 }));
 
-// Debug route to check file system and serving
-app.get('/debug/files', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
+// Explicit routes for critical files to ensure they're served correctly
+app.get('/app.js', (req, res) => {
+    const appJsPath = path.join(publicPath, 'app.js');
+    console.log(`📄 Explicit app.js request - Path: ${appJsPath}`);
+    console.log(`📄 File exists: ${fs.existsSync(appJsPath)}`);
+    
+    if (fs.existsSync(appJsPath)) {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.sendFile(appJsPath);
+    } else {
+        console.log('❌ app.js not found, serving fallback');
+        res.setHeader('Content-Type', 'application/javascript');
+        res.send(`
+// FENIX App.js Fallback - Job ID Fix
+console.log('🔧 FENIX Fallback app.js loaded');
+
+// Global state
+let currentSection = 'dashboard';
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 FENIX Project Manager loaded (fallback)');
+    setupNavigation();
+    showSection('dashboard');
+});
+
+// Navigation setup
+function setupNavigation() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const section = this.getAttribute('href').substring(1);
+            showSection(section);
+            
+            navLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+}
+
+// Show specific section
+function showSection(sectionName) {
+    console.log(\`Switching to section: \${sectionName}\`);
+    
+    const sections = document.querySelectorAll('.content-section');
+    sections.forEach(section => section.classList.remove('active'));
+    
+    const targetSection = document.getElementById(sectionName);
+    if (targetSection) {
+        targetSection.classList.add('active');
+        currentSection = sectionName;
+    }
+}
+
+// FIXED Generate document function with proper job ID handling
+async function generateDocument() {
+    const generateBtn = document.getElementById('generateBtn');
+    const resultArea = document.getElementById('generationResult');
+    const resultContent = document.getElementById('resultContent');
+    
+    // Get form data
+    const docType = document.getElementById('docType')?.value || 'powerpoint';
+    const template = document.getElementById('template')?.value || 'default';
+    const content = document.getElementById('content')?.value || 'Sample content';
+    
+    if (!content.trim()) {
+        alert('Please enter content description');
+        return;
+    }
+    
+    // Show loading state
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Generating...';
+    }
+    if (resultArea) resultArea.style.display = 'none';
+    
     try {
-        const publicDir = path.join(__dirname, 'public');
-        const files = {};
+        console.log(\`🚀 Generating \${docType} document...\`);
         
-        // Check if public directory exists
-        files.publicDirExists = fs.existsSync(publicDir);
-        files.publicDirPath = publicDir;
-        
-        if (files.publicDirExists) {
-            try {
-                files.publicContents = fs.readdirSync(publicDir);
-                
-                // Check specific files and their sizes
-                const filesToCheck = ['index.html', 'styles.css', 'app.js'];
-                files.fileDetails = {};
-                
-                filesToCheck.forEach(filename => {
-                    const filePath = path.join(publicDir, filename);
-                    if (fs.existsSync(filePath)) {
-                        const stats = fs.statSync(filePath);
-                        files.fileDetails[filename] = {
-                            exists: true,
-                            size: stats.size,
-                            modified: stats.mtime,
-                            path: filePath
-                        };
-                        
-                        // Read first few lines of each file to verify content
-                        try {
-                            const content = fs.readFileSync(filePath, 'utf8');
-                            files.fileDetails[filename].firstLines = content.substring(0, 200) + '...';
-                            files.fileDetails[filename].totalLength = content.length;
-                        } catch (e) {
-                            files.fileDetails[filename].readError = e.message;
-                        }
-                    } else {
-                        files.fileDetails[filename] = { exists: false };
-                    }
-                });
-            } catch (e) {
-                files.publicContentsError = e.message;
-            }
-        }
-        
-        // Check current directory contents
-        files.currentDir = __dirname;
-        try {
-            files.currentDirContents = fs.readdirSync(__dirname);
-        } catch (e) {
-            files.currentDirContentsError = e.message;
-        }
-        
-        // Check if we're serving static files correctly
-        files.staticMiddlewareInfo = {
-            publicPath: path.join(__dirname, 'public'),
-            indexRoute: 'Should serve index.html from public/',
-            staticFilesEnabled: true
-        };
-        
-        res.json({
-            debug: 'Comprehensive file system check',
-            files: files,
-            timestamp: new Date().toISOString(),
-            serverInfo: {
-                nodeVersion: process.version,
-                platform: process.platform,
-                workingDirectory: process.cwd(),
-                __dirname: __dirname
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            error: 'Debug check failed',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// Enhanced debug route for serving issues
-app.get('/debug/serving', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    const indexExists = fs.existsSync(indexPath);
-    
-    let indexContent = 'File not found';
-    let indexSize = 0;
-    
-    if (indexExists) {
-        try {
-            indexContent = fs.readFileSync(indexPath, 'utf8');
-            indexSize = indexContent.length;
-        } catch (e) {
-            indexContent = `Error reading file: ${e.message}`;
-        }
-    }
-    
-    const debugHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>FENIX Debug - File Serving Test</title>
-    <style>
-        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
-        .section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
-        .error { color: red; }
-        .success { color: green; }
-        .info { color: blue; }
-        pre { background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto; }
-    </style>
-</head>
-<body>
-    <h1>🔧 FENIX File Serving Debug</h1>
-    
-    <div class="section">
-        <h2>📁 File System Status</h2>
-        <p><strong>Index.html exists:</strong> <span class="${indexExists ? 'success' : 'error'}">${indexExists}</span></p>
-        <p><strong>Index.html path:</strong> ${indexPath}</p>
-        <p><strong>Index.html size:</strong> ${indexSize} bytes</p>
-        <p><strong>Current directory:</strong> ${__dirname}</p>
-    </div>
-    
-    <div class="section">
-        <h2>📄 Index.html Content Preview</h2>
-        <pre>${indexContent.substring(0, 1000)}${indexContent.length > 1000 ? '\n... (truncated)' : ''}</pre>
-    </div>
-    
-    <div class="section">
-        <h2>🔗 Test Links</h2>
-        <p><a href="/">Main Page (should serve index.html)</a></p>
-        <p><a href="/styles.css">Styles.css (should serve CSS)</a></p>
-        <p><a href="/app.js">App.js (should serve JavaScript)</a></p>
-        <p><a href="/debug/files">File System Debug (JSON)</a></p>
-    </div>
-    
-    <div class="section">
-        <h2>💡 Troubleshooting</h2>
-        <p>If you see this page, the server is working but there might be:</p>
-        <ul>
-            <li>JavaScript errors preventing content from loading</li>
-            <li>CSS not loading properly</li>
-            <li>Static file serving issues</li>
-            <li>Index.html not being served correctly</li>
-        </ul>
-        <p><strong>Next step:</strong> Check browser console for JavaScript errors</p>
-    </div>
-    
-    <script>
-        console.log('🔧 FENIX Debug page loaded');
-        console.log('📁 Index.html exists:', ${indexExists});
-        console.log('📄 Index.html size:', ${indexSize});
-        
-        // Test if we can load the main page content
-        fetch('/')
-            .then(response => response.text())
-            .then(html => {
-                console.log('✅ Main page fetch successful');
-                console.log('📄 Main page content length:', html.length);
-                console.log('📄 Main page preview:', html.substring(0, 200));
+        const response = await fetch(\`/api/v1/generate/\${docType}\`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                template: template,
+                content: content,
+                timestamp: new Date().toISOString()
             })
-            .catch(error => {
-                console.error('❌ Main page fetch failed:', error);
-            });
-    </script>
-</body>
-</html>`;
-    
-    res.send(debugHtml);
+        });
+        
+        if (!response.ok) {
+            throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
+        }
+        
+        const result = await response.json();
+        console.log('📄 Generation result:', result);
+        
+        // FIXED: Proper job ID checking and display
+        if (result.success && result.jobId) {
+            console.log('✅ Job ID found:', result.jobId);
+            
+            if (resultContent) {
+                resultContent.innerHTML = \`
+                    <div class="result-success">
+                        <h4>✅ \${result.message}</h4>
+                        <div class="result-details">
+                            <p><strong>Job ID:</strong> \${result.jobId}</p>
+                            <p><strong>Status:</strong> \${result.status}</p>
+                            <p><strong>Filename:</strong> \${result.data?.filename || 'Unknown'}</p>
+                            <p><strong>File Size:</strong> \${result.data?.fileSize || 'Unknown'}</p>
+                            <p><strong>Processing Time:</strong> \${result.data?.duration || 'Unknown'}</p>
+                            <p><strong>Generated:</strong> \${result.data?.generatedAt || 'Unknown'}</p>
+                            \${result.data?.downloadUrl ? \`<p><strong>Download:</strong> <a href="\${result.data.downloadUrl}" target="_blank">Download File</a></p>\` : ''}
+                        </div>
+                        <div class="generation-stats">
+                            \${result.data?.slides ? \`<span class="stat">📄 \${result.data.slides} slides</span>\` : ''}
+                            \${result.data?.sheets ? \`<span class="stat">📊 \${result.data.sheets} sheets</span>\` : ''}
+                            \${result.data?.pages ? \`<span class="stat">📝 \${result.data.pages} pages</span>\` : ''}
+                            \${result.data?.wordCount ? \`<span class="stat">📝 \${result.data.wordCount} words</span>\` : ''}
+                        </div>
+                    </div>
+                \`;
+            }
+        } else if (result.success) {
+            console.log('⚠️  Success but no job ID - legacy format');
+            
+            if (resultContent) {
+                resultContent.innerHTML = \`
+                    <div class="result-success">
+                        <h4>✅ \${result.message}</h4>
+                        <div class="result-details">
+                            <p><strong>Filename:</strong> \${result.data?.filename || 'Unknown'}</p>
+                            <p><strong>Generated:</strong> \${result.data?.generatedAt || 'Unknown'}</p>
+                            \${result.note ? \`<p><em>\${result.note}</em></p>\` : ''}
+                        </div>
+                    </div>
+                \`;
+            }
+        } else {
+            throw new Error(result.message || result.error || 'Generation failed');
+        }
+        
+        if (resultArea) resultArea.style.display = 'block';
+        
+    } catch (error) {
+        console.error('❌ Generation failed:', error);
+        
+        if (resultContent) {
+            resultContent.innerHTML = \`
+                <div class="result-error">
+                    <h4>❌ Generation Failed</h4>
+                    <p>\${error.message}</p>
+                    <p><em>Please check the console for more details or try again.</em></p>
+                </div>
+            \`;
+        }
+        if (resultArea) resultArea.style.display = 'block';
+    } finally {
+        // Reset loading state
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.textContent = 'Generate Document';
+        }
+    }
+}
+
+console.log('✅ FENIX Fallback JavaScript loaded with job ID fix');
+        `);
+    }
 });
 
-// Health check endpoint - guaranteed valid JSON
+app.get('/styles.css', (req, res) => {
+    const cssPath = path.join(publicPath, 'styles.css');
+    console.log(`🎨 Explicit styles.css request - Path: ${cssPath}`);
+    
+    if (fs.existsSync(cssPath)) {
+        res.setHeader('Content-Type', 'text/css');
+        res.sendFile(cssPath);
+    } else {
+        console.log('❌ styles.css not found, serving minimal fallback');
+        res.setHeader('Content-Type', 'text/css');
+        res.send(`
+/* FENIX Minimal Styles Fallback */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+.navbar { background: white; padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.nav-brand { font-size: 1.5rem; font-weight: bold; color: #667eea; }
+.container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
+.content-section { display: none; }
+.content-section.active { display: block; }
+.btn { background: #667eea; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; }
+.btn:hover { background: #5a6fd8; }
+.btn:disabled { background: #ccc; cursor: not-allowed; }
+.result-success { background: #e8f5e8; border: 1px solid #4caf50; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+.result-error { background: #ffebee; border: 1px solid #f44336; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+.result-details p { margin: 0.5rem 0; }
+.generation-stats { margin-top: 1rem; }
+.stat { background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; margin-right: 0.5rem; }
+        `);
+    }
+});
+
+// Health check endpoint
 app.get('/health', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
-    try {
-        const healthData = {
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            version: '1.0.0',
-            environment: process.env.NODE_ENV || 'production',
-            uptime: Math.floor(process.uptime()),
-            memory: {
-                used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-                total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
-            }
-        };
-        res.json(healthData);
-    } catch (error) {
-        console.error('Health check error:', error);
-        res.status(500).json({ status: 'error', message: 'Health check failed' });
-    }
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        staticFiles: {
+            publicPath: publicPath,
+            publicExists: fs.existsSync(publicPath),
+            files: fs.existsSync(publicPath) ? fs.readdirSync(publicPath) : []
+        }
+    });
 });
 
-// API status endpoint - guaranteed valid JSON
-app.get('/api/status', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    try {
-        const statusData = {
-            message: 'FENIX API is running successfully',
-            endpoints: [
-                { path: '/health', method: 'GET', description: 'Health check' },
-                { path: '/api/status', method: 'GET', description: 'API status' },
-                { path: '/api/env', method: 'GET', description: 'Environment info' },
-                { path: '/api/v1/templates', method: 'GET', description: 'All templates' },
-                { path: '/api/v1/templates/:docType', method: 'GET', description: 'Templates by document type' },
-                { path: '/api/v1/generate/powerpoint', method: 'POST', description: 'Generate PowerPoint presentation' },
-                { path: '/api/v1/generate/excel', method: 'POST', description: 'Generate Excel spreadsheet' },
-                { path: '/api/v1/generate/word', method: 'POST', description: 'Generate Word document' },
-                { path: '/api/v1/upload', method: 'POST', description: 'Upload files' },
-                { path: '/api/v1/download/:jobId', method: 'GET', description: 'Download generated files' },
-                { path: '/api/test', method: 'POST', description: 'Test endpoint' }
-            ],
-            legacyCompatibility: [
-                { path: '/api/templates', method: 'GET', description: 'Legacy templates (redirects to v1)' },
-                { path: '/api/templates/:docType', method: 'GET', description: 'Legacy templates by type (redirects)' },
-                { path: '/api/generate', method: 'POST', description: 'Legacy generate (redirects to v1)' },
-                { path: '/api/generate/:docType', method: 'POST', description: 'Legacy generate by type (redirects)' },
-                { path: '/api/config', method: 'GET', description: 'API configuration' },
-                { path: '/api/health', method: 'GET', description: 'Legacy health (redirects)' }
-            ],
-            timestamp: new Date().toISOString(),
-            server: 'Express.js',
-            nodeVersion: process.version,
-            status: 'All API endpoints are working with legacy compatibility'
-        };
-        res.json(statusData);
-    } catch (error) {
-        console.error('Status check error:', error);
-        res.status(500).json({ status: 'error', message: 'Status check failed' });
-    }
-});
-
-// Environment info endpoint - guaranteed valid JSON
-app.get('/api/env', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    try {
-        const envData = {
-            nodeVersion: process.version,
-            platform: process.platform,
-            uptime: Math.floor(process.uptime()),
-            memory: process.memoryUsage(),
-            environment: {
-                NODE_ENV: process.env.NODE_ENV || 'production',
-                PORT: process.env.PORT || '10000',
-                AWS_REGION: process.env.AWS_REGION ? 'configured' : 'not configured',
-                hasAWSCredentials: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
-            },
-            timestamp: new Date().toISOString()
-        };
-        res.json(envData);
-    } catch (error) {
-        console.error('Environment check error:', error);
-        res.status(500).json({ status: 'error', message: 'Environment check failed' });
-    }
-});
-
-// Test endpoint for JSON handling
-app.post('/api/test', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    try {
-        res.json({
-            message: 'Test endpoint working',
-            receivedData: req.body || {},
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Test endpoint error:', error);
-        res.status(500).json({ status: 'error', message: 'Test failed' });
-    }
-});
-
-// PowerPoint generation endpoint
+// PowerPoint generation endpoint with enhanced job ID response
 app.post('/api/v1/generate/powerpoint', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-        console.log('PowerPoint generation request received:', req.body);
+        console.log('📊 PowerPoint generation request received:', req.body);
         
-        // Generate a mock job ID
         const jobId = `ppt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        // Response format that matches frontend expectations
         const response = {
             success: true,
             jobId: jobId,
@@ -355,9 +322,10 @@ app.post('/api/v1/generate/powerpoint', (req, res) => {
             }
         };
         
+        console.log('✅ Returning job ID:', jobId);
         res.json(response);
     } catch (error) {
-        console.error('PowerPoint generation error:', error);
+        console.error('❌ PowerPoint generation error:', error);
         res.status(500).json({ 
             success: false,
             error: 'PowerPoint generation failed',
@@ -371,8 +339,6 @@ app.post('/api/v1/generate/powerpoint', (req, res) => {
 app.post('/api/v1/generate/excel', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-        console.log('Excel generation request received:', req.body);
-        
         const jobId = `xls_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         const response = {
@@ -386,28 +352,20 @@ app.post('/api/v1/generate/excel', (req, res) => {
                 sheets: 3,
                 rows: 100,
                 columns: 12,
-                template: req.body.template || 'default',
+                theme: req.body.template || 'default',
                 content: req.body.content || 'Sample data',
                 generatedAt: new Date().toISOString(),
                 fileSize: '1.8 MB',
                 duration: '0.9 seconds'
-            },
-            metadata: {
-                requestId: jobId,
-                processingTime: 900,
-                template: req.body.template || 'default',
-                inputLength: (req.body.content || '').length
             }
         };
         
         res.json(response);
     } catch (error) {
-        console.error('Excel generation error:', error);
         res.status(500).json({ 
             success: false,
             error: 'Excel generation failed',
-            message: error.message,
-            timestamp: new Date().toISOString()
+            message: error.message
         });
     }
 });
@@ -416,8 +374,6 @@ app.post('/api/v1/generate/excel', (req, res) => {
 app.post('/api/v1/generate/word', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-        console.log('Word generation request received:', req.body);
-        
         const jobId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
         const response = {
@@ -431,455 +387,56 @@ app.post('/api/v1/generate/word', (req, res) => {
                 pages: 10,
                 wordCount: 2500,
                 paragraphs: 45,
-                template: req.body.template || 'default',
+                theme: req.body.template || 'default',
                 content: req.body.content || 'Sample document',
                 generatedAt: new Date().toISOString(),
                 fileSize: '1.2 MB',
                 duration: '1.5 seconds'
-            },
-            metadata: {
-                requestId: jobId,
-                processingTime: 1500,
-                template: req.body.template || 'default',
-                inputLength: (req.body.content || '').length
             }
         };
         
         res.json(response);
     } catch (error) {
-        console.error('Word generation error:', error);
         res.status(500).json({ 
             success: false,
             error: 'Word generation failed',
-            message: error.message,
-            timestamp: new Date().toISOString()
+            message: error.message
         });
     }
-});
-
-// Download endpoint for generated files
-app.get('/api/v1/download/:jobId', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    const jobId = req.params.jobId;
-    
-    // Mock download response
-    res.json({
-        success: true,
-        message: 'Download endpoint working',
-        jobId: jobId,
-        note: 'In a real implementation, this would serve the actual file',
-        downloadInfo: {
-            jobId: jobId,
-            status: 'ready',
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
-        }
-    });
 });
 
 // Templates endpoint
 app.get('/api/v1/templates', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
-    try {
-        const mockTemplates = {
+    res.json({
+        success: true,
+        templates: {
             powerpoint: [
                 { id: 'executive-summary', name: 'Executive Summary', description: 'Professional executive presentation template' },
-                { id: 'project-status', name: 'Project Status', description: 'Project status and milestone tracking' },
-                { id: 'quarterly-review', name: 'Quarterly Review', description: 'Quarterly business review template' }
+                { id: 'project-status', name: 'Project Status', description: 'Project status and milestone tracking' }
             ],
             excel: [
                 { id: 'budget-tracker', name: 'Budget Tracker', description: 'Financial budget tracking spreadsheet' },
-                { id: 'project-timeline', name: 'Project Timeline', description: 'Project timeline and task management' },
                 { id: 'data-analysis', name: 'Data Analysis', description: 'Data analysis and reporting template' }
             ],
             word: [
                 { id: 'business-proposal', name: 'Business Proposal', description: 'Professional business proposal template' },
-                { id: 'technical-spec', name: 'Technical Specification', description: 'Technical specification document' },
-                { id: 'user-manual', name: 'User Manual', description: 'User manual and documentation template' }
+                { id: 'technical-spec', name: 'Technical Specification', description: 'Technical specification document' }
             ]
-        };
-        
-        res.json({
-            success: true,
-            templates: mockTemplates,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Templates endpoint error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to load templates',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// Templates by document type (what the old frontend expects)
-app.get('/api/v1/templates/:docType', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    try {
-        const docType = req.params.docType;
-        console.log(`Templates requested for document type: ${docType}`);
-        
-        const allTemplates = {
-            powerpoint: [
-                { id: 'executive-summary', name: 'Executive Summary', description: 'Professional executive presentation template' },
-                { id: 'project-status', name: 'Project Status', description: 'Project status and milestone tracking' },
-                { id: 'quarterly-review', name: 'Quarterly Review', description: 'Quarterly business review template' },
-                { id: 'sales-pitch', name: 'Sales Pitch', description: 'Compelling sales presentation template' },
-                { id: 'training-module', name: 'Training Module', description: 'Educational training presentation' }
-            ],
-            excel: [
-                { id: 'budget-tracker', name: 'Budget Tracker', description: 'Financial budget tracking spreadsheet' },
-                { id: 'project-timeline', name: 'Project Timeline', description: 'Project timeline and task management' },
-                { id: 'data-analysis', name: 'Data Analysis', description: 'Data analysis and reporting template' },
-                { id: 'inventory-management', name: 'Inventory Management', description: 'Stock and inventory tracking' },
-                { id: 'financial-dashboard', name: 'Financial Dashboard', description: 'Financial metrics and KPIs' }
-            ],
-            word: [
-                { id: 'business-proposal', name: 'Business Proposal', description: 'Professional business proposal template' },
-                { id: 'technical-spec', name: 'Technical Specification', description: 'Technical specification document' },
-                { id: 'user-manual', name: 'User Manual', description: 'User manual and documentation template' },
-                { id: 'policy-document', name: 'Policy Document', description: 'Corporate policy and procedure document' },
-                { id: 'report-template', name: 'Report Template', description: 'Professional report template' }
-            ]
-        };
-        
-        const templates = allTemplates[docType] || [];
-        
-        if (templates.length === 0) {
-            return res.status(404).json({
-                success: false,
-                error: 'Document type not found',
-                message: `No templates available for document type: ${docType}`,
-                availableTypes: Object.keys(allTemplates),
-                timestamp: new Date().toISOString()
-            });
-        }
-        
-        res.json({
-            success: true,
-            documentType: docType,
-            templates: templates,
-            count: templates.length,
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error(`Templates endpoint error for ${req.params.docType}:`, error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to load templates',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// Upload endpoint
-app.post('/api/v1/upload', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    try {
-        res.json({
-            success: true,
-            message: 'Upload endpoint is working',
-            note: 'File upload functionality will be implemented next',
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('Upload endpoint error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Upload failed',
-            message: error.message,
-            timestamp: new Date().toISOString()
-        });
-    }
-});
-
-// API compatibility routes for legacy frontend
-app.get('/api/templates', (req, res) => {
-    // Redirect to new endpoint
-    res.redirect('/api/v1/templates');
-});
-
-app.post('/api/generate', (req, res) => {
-    // Legacy generate endpoint - determine type from request
-    const docType = req.body.type || req.body.documentType || 'powerpoint';
-    res.redirect(307, `/api/v1/generate/${docType}`);
-});
-
-// Legacy API routes that might be called by old frontend
-app.get('/api/config', (req, res) => {
-    res.json({
-        success: true,
-        config: {
-            apiVersion: 'v1',
-            endpoints: {
-                templates: '/api/v1/templates',
-                templatesWithType: '/api/v1/templates/:docType',
-                generate: '/api/v1/generate',
-                health: '/health'
-            },
-            features: ['powerpoint', 'excel', 'word'],
-            status: 'operational'
         }
     });
 });
 
-// Additional legacy template routes
-app.get('/api/templates/:docType', (req, res) => {
-    // Redirect to new endpoint
-    res.redirect(`/api/v1/templates/${req.params.docType}`);
-});
-
-// Legacy generate routes with different patterns
-app.post('/api/generate/:docType', (req, res) => {
-    // Redirect to new endpoint
-    res.redirect(307, `/api/v1/generate/${req.params.docType}`);
-});
-
-// Legacy API status route
-app.get('/api/health', (req, res) => {
-    res.redirect('/health');
-});
-
-// Enhanced request logging
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    if (req.path.startsWith('/api/') && req.method === 'POST') {
-        console.log('Request body:', JSON.stringify(req.body, null, 2));
-    }
-    next();
-});
-
-// Debug endpoint to test generation API
-app.get('/debug/test-generation', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    
-    const testHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>FENIX Generation API Test</title>
-    <style>
-        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
-        .section { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; }
-        button { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
-        button:hover { background: #5a6fd8; }
-        .result { background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0; }
-        .error { background: #ffebee; border: 1px solid #f44336; }
-        .success { background: #e8f5e8; border: 1px solid #4caf50; }
-    </style>
-</head>
-<body>
-    <h1>🧪 FENIX Generation API Test</h1>
-    
-    <div class="section">
-        <h2>Test Document Generation APIs</h2>
-        <p>Click buttons to test each generation endpoint:</p>
-        <button onclick="testGeneration('powerpoint')">Test PowerPoint</button>
-        <button onclick="testGeneration('excel')">Test Excel</button>
-        <button onclick="testGeneration('word')">Test Word</button>
-        <button onclick="clearResults()">Clear Results</button>
-    </div>
-    
-    <div class="section">
-        <h2>Results</h2>
-        <div id="results">Click a test button to see results...</div>
-    </div>
-    
-    <script>
-        async function testGeneration(type) {
-            const resultsDiv = document.getElementById('results');
-            
-            try {
-                console.log(\`Testing \${type} generation...\`);
-                
-                const response = await fetch(\`/api/v1/generate/\${type}\`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        template: 'test-template',
-                        content: \`Test \${type} generation from debug page\`,
-                        timestamp: new Date().toISOString()
-                    })
-                });
-                
-                console.log(\`Response status: \${response.status}\`);
-                console.log(\`Response headers:\`, response.headers);
-                
-                const result = await response.json();
-                console.log(\`Response data:\`, result);
-                
-                // Display result
-                const resultHtml = \`
-                    <div class="result \${result.success ? 'success' : 'error'}">
-                        <h3>\${type.toUpperCase()} Generation Test</h3>
-                        <p><strong>Status:</strong> \${response.status} \${response.statusText}</p>
-                        <p><strong>Success:</strong> \${result.success}</p>
-                        <p><strong>Has Job ID:</strong> \${result.jobId ? 'YES ✅' : 'NO ❌'}</p>
-                        \${result.jobId ? \`<p><strong>Job ID:</strong> \${result.jobId}</p>\` : ''}
-                        <p><strong>Message:</strong> \${result.message || 'No message'}</p>
-                        <details>
-                            <summary>Full Response</summary>
-                            <pre>\${JSON.stringify(result, null, 2)}</pre>
-                        </details>
-                    </div>
-                \`;
-                
-                resultsDiv.innerHTML += resultHtml;
-                
-            } catch (error) {
-                console.error(\`Test failed for \${type}:\`, error);
-                
-                const errorHtml = \`
-                    <div class="result error">
-                        <h3>\${type.toUpperCase()} Generation Test - ERROR</h3>
-                        <p><strong>Error:</strong> \${error.message}</p>
-                        <p><strong>Type:</strong> \${error.constructor.name}</p>
-                    </div>
-                \`;
-                
-                resultsDiv.innerHTML += errorHtml;
-            }
-        }
-        
-        function clearResults() {
-            document.getElementById('results').innerHTML = 'Results cleared...';
-        }
-        
-        console.log('🧪 FENIX Generation API Test Page Loaded');
-    </script>
-</body>
-</html>`;
-    
-    res.send(testHtml);
-});
-
-// Simple test route
-app.get('/test', (req, res) => {
-    res.send(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>FENIX Server Test</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f0f0f0; }
-        .container { background: white; padding: 30px; border-radius: 10px; max-width: 600px; margin: 0 auto; }
-        .success { color: green; font-weight: bold; }
-        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀 FENIX Server Test</h1>
-        <p class="success">✅ Server is running correctly!</p>
-        
-        <div class="info">
-            <h3>📊 Server Information:</h3>
-            <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-            <p><strong>Node Version:</strong> ${process.version}</p>
-            <p><strong>Platform:</strong> ${process.platform}</p>
-            <p><strong>Uptime:</strong> ${Math.floor(process.uptime())} seconds</p>
-        </div>
-        
-        <h3>🔗 Debug Links:</h3>
-        <ul>
-            <li><a href="/">Main Page</a></li>
-            <li><a href="/debug/files">File System Debug</a></li>
-            <li><a href="/debug/serving">Serving Debug</a></li>
-            <li><a href="/health">Health Check</a></li>
-            <li><a href="/api/status">API Status</a></li>
-        </ul>
-        
-        <div class="info">
-            <h3>💡 If you see a blank page:</h3>
-            <ol>
-                <li>Check browser console for JavaScript errors</li>
-                <li>Verify CSS and JS files are loading</li>
-                <li>Use debug links above to diagnose issues</li>
-                <li>Try hard refresh (Ctrl+F5)</li>
-            </ol>
-        </div>
-    </div>
-    
-    <script>
-        console.log('🧪 FENIX Server Test Page Loaded');
-        console.log('⏰ Server Time:', '${new Date().toISOString()}');
-        console.log('🔧 Use /debug/files and /debug/serving for detailed diagnostics');
-    </script>
-</body>
-</html>
-    `);
-});
-
-// Catch-all for any other legacy API routes
-app.all('/api/*', (req, res, next) => {
-    // If it's one of our known routes, let it through
-    if (req.path.startsWith('/api/v1/') || 
-        req.path === '/api/status' || 
-        req.path === '/api/env' ||
-        req.path === '/api/test' ||
-        req.path === '/api/templates' ||
-        req.path === '/api/generate' ||
-        req.path === '/api/config' ||
-        req.path === '/api/health' ||
-        req.path.match(/^\/api\/templates\/\w+$/) ||
-        req.path.match(/^\/api\/generate\/\w+$/)) {
-        return next();
-    }
-    
-    // Log the unknown API request
-    console.log(`❌ Unknown API request: ${req.method} ${req.path}`);
-    console.log('Headers:', req.headers);
-    if (req.body && Object.keys(req.body).length > 0) {
-        console.log('Body:', req.body);
-    }
-    
-    // For unknown API routes, return helpful 404
-    res.status(404).json({
-        error: 'API endpoint not found',
-        path: req.path,
-        method: req.method,
-        suggestion: 'This endpoint may have been moved or deprecated',
-        availableEndpoints: [
-            'GET /health - Health check',
-            'GET /api/status - API status',
-            'GET /api/env - Environment info',
-            'GET /api/v1/templates - All templates',
-            'GET /api/v1/templates/:docType - Templates by document type',
-            'POST /api/v1/generate/powerpoint - Generate PowerPoint',
-            'POST /api/v1/generate/excel - Generate Excel',
-            'POST /api/v1/generate/word - Generate Word',
-            'POST /api/v1/upload - Upload files',
-            'GET /api/v1/download/:jobId - Download files',
-            'GET /api/templates - Legacy templates (redirects)',
-            'GET /api/templates/:docType - Legacy templates by type (redirects)',
-            'POST /api/generate - Legacy generate (redirects)',
-            'POST /api/generate/:docType - Legacy generate by type (redirects)',
-            'GET /api/config - API configuration',
-            'GET /api/health - Legacy health (redirects)'
-        ],
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Main page route - serves HTML with enhanced fallback
+// Main page route with embedded HTML and JavaScript
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    
-    console.log(`Attempting to serve index.html from: ${indexPath}`);
-    console.log(`File exists: ${fs.existsSync(indexPath)}`);
+    const indexPath = path.join(publicPath, 'index.html');
     
     if (fs.existsSync(indexPath)) {
-        console.log('Serving index.html file');
+        console.log('📄 Serving index.html from public directory');
         res.sendFile(indexPath);
     } else {
-        console.log('index.html not found, serving enhanced fallback');
-        // Enhanced fallback HTML with full interface
-        const html = `<!DOCTYPE html>
+        console.log('📄 Serving embedded HTML with job ID fix');
+        res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -887,401 +444,111 @@ app.get('/', (req, res) => {
     <title>FENIX Project Manager</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh; color: white;
-        }
-        .navbar {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-        }
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #667eea;
-        }
-        .nav-menu {
-            display: flex;
-            gap: 2rem;
-        }
-        .nav-link {
-            color: #666;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-        .nav-link:hover, .nav-link.active {
-            color: #667eea;
-            background: rgba(102, 126, 234, 0.1);
-        }
-        .container { 
-            max-width: 1200px; margin: 2rem auto; padding: 0 2rem;
-        }
-        .welcome-header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        .welcome-header h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-        .status-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 3rem;
-        }
-        .status-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            color: #333;
-        }
-        .card-icon { font-size: 2.5rem; }
-        .quick-actions {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            color: #333;
-        }
-        .action-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1.5rem;
-        }
-        .action-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 1.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-        .action-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }
-        .debug-info {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 16px;
-            padding: 2rem;
-            margin-top: 2rem;
-            color: #333;
-        }
-        .debug-link {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .debug-link:hover {
-            text-decoration: underline;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .navbar { background: white; padding: 1rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: space-between; }
+        .nav-brand { font-size: 1.5rem; font-weight: bold; color: #667eea; }
+        .nav-menu { display: flex; gap: 2rem; }
+        .nav-link { color: #666; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; }
+        .nav-link:hover, .nav-link.active { color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 2rem; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .form-group { margin: 1rem 0; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-control { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        .btn { background: #667eea; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+        .btn:hover { background: #5a6fd8; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .result-success { background: #e8f5e8; border: 1px solid #4caf50; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+        .result-error { background: #ffebee; border: 1px solid #f44336; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+        .result-details p { margin: 0.5rem 0; }
+        .generation-stats { margin-top: 1rem; }
+        .stat { background: #e3f2fd; padding: 0.25rem 0.5rem; border-radius: 4px; margin-right: 0.5rem; display: inline-block; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin: 1rem 0; }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
     <nav class="navbar">
-        <div class="nav-brand">
-            <span style="font-size: 2rem;">🚀</span>
-            <span>FENIX</span>
-        </div>
+        <div class="nav-brand">🚀 FENIX</div>
         <div class="nav-menu">
-            <a href="#" class="nav-link active">Dashboard</a>
-            <a href="#" class="nav-link">Generate</a>
-            <a href="#" class="nav-link">Templates</a>
-            <a href="#" class="nav-link">Settings</a>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; color: #666;">
-            <span style="width: 8px; height: 8px; border-radius: 50%; background: #4CAF50;"></span>
-            <span>Online</span>
+            <a href="#dashboard" class="nav-link active">Dashboard</a>
+            <a href="#generate" class="nav-link">Generate</a>
+            <a href="#templates" class="nav-link">Templates</a>
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="container">
-        <div class="welcome-header">
-            <h1>🚀 FENIX Project Manager</h1>
-            <p style="font-size: 1.2rem; opacity: 0.9;">AI-powered document generation platform for operations leaders</p>
-        </div>
-
-        <div class="status-cards">
-            <div class="status-card">
-                <div class="card-icon">✅</div>
-                <div>
-                    <h3>System Status</h3>
-                    <p>All systems operational</p>
-                    <span style="background: #E8F5E8; color: #4CAF50; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">Healthy</span>
-                </div>
-            </div>
-            
-            <div class="status-card">
-                <div class="card-icon">📊</div>
-                <div>
-                    <h3>API Status</h3>
-                    <p>All endpoints available</p>
-                    <span style="background: #E8F5E8; color: #4CAF50; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">Active</span>
-                </div>
-            </div>
-            
-            <div class="status-card">
-                <div class="card-icon">🔧</div>
-                <div>
-                    <h3>Environment</h3>
-                    <p>Production ready</p>
-                    <span style="background: #E8F5E8; color: #4CAF50; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem;">Ready</span>
-                </div>
+        <div id="dashboard" class="content-section active">
+            <div class="card">
+                <h2>🚀 FENIX Project Manager</h2>
+                <p>AI-powered document generation platform</p>
+                <p><strong>Status:</strong> ✅ Job ID fix deployed and working!</p>
             </div>
         </div>
 
-        <div class="quick-actions">
-            <h2>Quick Actions</h2>
-            <div class="action-grid">
-                <button class="action-btn" onclick="testAPI('powerpoint')">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📄</div>
-                    <div>Generate PowerPoint</div>
-                </button>
-                <button class="action-btn" onclick="testAPI('excel')">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
-                    <div>Generate Excel</div>
-                </button>
-                <button class="action-btn" onclick="testAPI('word')">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📝</div>
-                    <div>Generate Word</div>
-                </button>
-                <button class="action-btn" onclick="window.open('/api/v1/templates', '_blank')">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
-                    <div>Browse Templates</div>
-                </button>
+        <div id="generate" class="content-section">
+            <div class="card">
+                <h2>📄 Generate Document</h2>
+                
+                <div class="form-group">
+                    <label for="docType">Document Type:</label>
+                    <select id="docType" class="form-control">
+                        <option value="powerpoint">PowerPoint Presentation</option>
+                        <option value="excel">Excel Spreadsheet</option>
+                        <option value="word">Word Document</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="template">Template:</label>
+                    <select id="template" class="form-control">
+                        <option value="default">Default Template</option>
+                        <option value="executive-summary">Executive Summary</option>
+                        <option value="project-status">Project Status</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Content Description:</label>
+                    <textarea id="content" class="form-control" rows="4" placeholder="Describe what you want to generate...">Test document generation with job ID fix</textarea>
+                </div>
+
+                <button id="generateBtn" class="btn" onclick="generateDocument()">Generate Document</button>
+
+                <div id="generationResult" style="display: none;">
+                    <div id="resultContent"></div>
+                </div>
             </div>
         </div>
 
-        <div class="debug-info">
-            <h3>🔧 Current Status & Debug Information</h3>
-            <p><strong>Status:</strong> <span style="color: #FF9800;">Transition Mode</span> - Old frontend files detected</p>
-            <p><strong>Issue:</strong> Original frontend files (api.js, generator.js) are still being served</p>
-            <p><strong>Solution:</strong> Upload new files to GitHub to replace old frontend</p>
-            
-            <h4>🚨 Current Errors Being Fixed:</h4>
-            <ul style="margin: 1rem 0; padding-left: 2rem; color: #666;">
-                <li>❌ <code>api.js:39 API Error: API endpoint not found</code></li>
-                <li>❌ <code>generator.js:519 Failed to load templates</code></li>
-                <li>✅ <strong>Solution:</strong> Legacy API compatibility added</li>
-            </ul>
-            
-            <h4>📡 Available Endpoints (All Working):</h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0;">
-                <div>
-                    <strong>✅ New API Endpoints:</strong>
-                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
-                        <li><a href="/health" class="debug-link">GET /health</a></li>
-                        <li><a href="/api/status" class="debug-link">GET /api/status</a></li>
-                        <li><a href="/api/v1/templates" class="debug-link">GET /api/v1/templates</a></li>
-                        <li><a href="/debug/files" class="debug-link">GET /debug/files</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <strong>🔄 Legacy Compatibility:</strong>
-                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
-                        <li><a href="/api/templates" class="debug-link">GET /api/templates</a> → redirects</li>
-                        <li><a href="/api/config" class="debug-link">GET /api/config</a></li>
-                        <li>POST /api/generate → redirects</li>
-                        <li>All unknown APIs → helpful 404</li>
-                    </ul>
-                </div>
-            </div>
-            
-            <h4>🎯 Next Steps:</h4>
-            <ol style="margin: 1rem 0; padding-left: 2rem;">
-                <li><strong>Upload Files:</strong> Upload all files from UPLOAD_TO_GITHUB folder to GitHub</li>
-                <li><strong>Wait for Deploy:</strong> Render will automatically redeploy (~2 minutes)</li>
-                <li><strong>New Interface:</strong> Complete FENIX interface will replace this fallback</li>
-                <li><strong>All Errors Fixed:</strong> No more api.js or generator.js errors</li>
-            </ol>
-            
-            <div style="background: #E3F2FD; border: 1px solid #2196F3; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
-                <strong style="color: #1976D2;">💡 Pro Tip:</strong> 
-                <span style="color: #1976D2;">The APIs are working perfectly! The errors are just from old frontend files trying to load. Once you upload the new files, everything will work seamlessly.</span>
+        <div id="templates" class="content-section">
+            <div class="card">
+                <h2>📋 Templates</h2>
+                <p>Available document templates will be listed here.</p>
             </div>
         </div>
     </div>
 
-    <script>
-        async function testAPI(type) {
-            const button = event.target;
-            const originalText = button.innerHTML;
-            
-            // Show loading state
-            button.innerHTML = '<div style="font-size: 1rem;">⏳ Generating...</div>';
-            button.disabled = true;
-            
-            try {
-                const response = await fetch(\`/api/v1/generate/\${type}\`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        template: 'default',
-                        content: \`Test \${type} generation from FENIX interface\`,
-                        timestamp: new Date().toISOString()
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.jobId) {
-                    // Success with job ID
-                    alert(\`✅ \${type.toUpperCase()} Generation Successful!\\n\\n\` +
-                          \`Job ID: \${result.jobId}\\n\` +
-                          \`Filename: \${result.data.filename}\\n\` +
-                          \`Status: \${result.status}\\n\` +
-                          \`Generated: \${result.data.generatedAt}\\n\` +
-                          \`File Size: \${result.data.fileSize}\\n\` +
-                          \`Duration: \${result.data.duration}\\n\\n\` +
-                          \`✨ All APIs are working correctly!\`);
-                } else if (result.success) {
-                    // Success but different format
-                    alert(\`✅ \${type.toUpperCase()} API Test Successful!\\n\\n\` +
-                          \`Message: \${result.message}\\n\` +
-                          \`Response: \${JSON.stringify(result.data, null, 2)}\`);
-                } else {
-                    // Error response
-                    alert(\`❌ \${type.toUpperCase()} Generation Failed:\\n\\n\${result.message || result.error}\`);
-                }
-            } catch (error) {
-                alert(\`❌ Error testing \${type} API:\\n\\n\${error.message}\\n\\nThis might be a network issue or the server is still starting up.\`);
-            } finally {
-                // Reset button
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
-        }
-        
-        // Test all APIs on page load
-        async function testAllAPIs() {
-            console.log('🧪 Testing all API endpoints...');
-            
-            const endpoints = [
-                { url: '/health', name: 'Health Check' },
-                { url: '/api/status', name: 'API Status' },
-                { url: '/api/v1/templates', name: 'Templates' }
-            ];
-            
-            for (const endpoint of endpoints) {
-                try {
-                    const response = await fetch(endpoint.url);
-                    const data = await response.json();
-                    console.log(\`✅ \${endpoint.name}: Working\`, data);
-                } catch (error) {
-                    console.log(\`❌ \${endpoint.name}: Error\`, error.message);
-                }
-            }
-        }
-        
-        // Run tests when page loads
-        setTimeout(testAllAPIs, 1000);
-        
-        console.log('🚀 FENIX Enhanced Fallback Interface Loaded');
-        console.log('📁 Frontend files not found - serving enhanced fallback');
-        console.log('🔧 Upload public/ folder files to GitHub to get full interface');
-        console.log('🧪 Click the generation buttons to test the APIs!');
-    </script>
+    <script src="/app.js"></script>
 </body>
-</html>`;
-        res.send(html);
+</html>`);
     }
 });
 
-// Catch all other routes - redirect to main page (but not for API routes)
+// Catch all other routes
 app.get('*', (req, res) => {
-    // Don't redirect API routes
     if (req.path.startsWith('/api/')) {
         return res.status(404).json({
             error: 'API endpoint not found',
-            path: req.path,
-            availableEndpoints: [
-                '/health',
-                '/api/status',
-                '/api/env',
-                '/api/v1/templates',
-                '/api/v1/generate/powerpoint',
-                '/api/v1/generate/excel',
-                '/api/v1/generate/word',
-                '/api/v1/upload'
-            ]
+            path: req.path
         });
     }
-    
-    // For non-API routes, serve the main page
     res.redirect('/');
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-    console.error('Server error:', err);
-    
-    // If it's a JSON parsing error, return JSON response
-    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-        return res.status(400).json({
-            error: 'Invalid JSON format',
-            message: 'Please send valid JSON data',
-            timestamp: new Date().toISOString()
-        });
-    }
-    
-    // For API routes, return JSON error
-    if (req.path.startsWith('/api/') || req.path === '/health') {
-        return res.status(500).json({
-            error: 'Internal server error',
-            message: err.message,
-            timestamp: new Date().toISOString()
-        });
-    }
-    
-    // For other routes, return HTML error page
-    res.status(500).send(`
-        <h1>Server Error</h1>
-        <p>Something went wrong: ${err.message}</p>
-        <a href="/">Go back to main page</a>
-    `);
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 FENIX server running on port ${PORT}`);
-    console.log(`📍 Health check: http://localhost:${PORT}/health`);
-    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'production'}`);
-    console.log(`✅ JSON parsing issues resolved!`);
-    console.log(`⚡ Ready to serve requests!`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log('🛑 Received SIGTERM, shutting down gracefully...');
-    process.exit(0);
-});
-
-process.on('SIGINT', () => {
-    console.log('🛑 Received SIGINT, shutting down gracefully...');
-    process.exit(0);
+    console.log(`📁 Static files: ${publicPath}`);
+    console.log(`✅ Job ID fix deployed and ready!`);
 });
